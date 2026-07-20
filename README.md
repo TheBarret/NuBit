@@ -1,6 +1,73 @@
 
 A 8/16-bit neural CPU with 7 ALU operations.  
 
+## Atom
+
+```py
+class Gate:
+    def __init__(self, gate_type='AND'):
+        self.gate_type = gate_type
+
+        # truth tables
+        if gate_type == 'AND':
+            self.w1, self.w2, self.bias = 1.0, 1.0, -1.5
+        elif gate_type == 'OR':
+            self.w1, self.w2, self.bias = 1.0, 1.0, -0.5
+        elif gate_type == 'NAND':
+            self.w1, self.w2, self.bias = -1.0, -1.0, 1.5
+        elif gate_type == 'NOR':
+            self.w1, self.w2, self.bias = -1.0, -1.0, 0.5
+        elif gate_type == 'NOT':
+            self.w1, self.w2, self.bias = -1.0, 0.0, 0.5
+        else:
+            self.w1, self.w2, self.bias = 1.0, 1.0, -1.5
+            
+    def sigmoid(self, x, steepness=10):
+        return 1.0 / (1.0 + np.exp(-steepness * x))
+    
+    def forward(self, x1, x2=0.0):
+        if self.gate_type == 'NOT':
+            linear = self.w1 * x1 + self.bias
+        else:
+            linear = self.w1 * x1 + self.w2 * x2 + self.bias
+        return self.sigmoid(linear)
+    
+    def predict_binary(self, x1, x2=0.0):
+        return 1.0 if self.forward(x1, x2) > 0.5 else 0.0
+    
+    def discretize(self, inputs, targets):
+        # Preserve sign of weights
+        self.w1 = 1.0 if self.w1 > 0.5 else (-1.0 if self.w1 < -0.5 else 0.0)
+        self.w2 = 1.0 if self.w2 > 0.5 else (-1.0 if self.w2 < -0.5 else 0.0)
+        
+        # For gates that need negative weights
+        if self.gate_type in ['NAND', 'NOR']:
+            self.w1 = -1.0
+            self.w2 = -1.0
+        elif self.gate_type == 'NOT':
+            self.w1 = -1.0
+            self.w2 = 0.0
+        
+        best_bias = None
+        best_score = float('inf')
+        for bias_candidate in np.arange(-3.0, 3.1, 0.1):
+            self.bias = bias_candidate
+            errors = 0
+            for i in range(len(inputs)):
+                if self.gate_type == 'NOT':
+                    pred = self.predict_binary(inputs[i][0])
+                else:
+                    pred = self.predict_binary(inputs[i][0], inputs[i][1])
+                errors += (pred - targets[i]) ** 2
+            if errors < best_score:
+                best_score = errors
+                best_bias = bias_candidate
+        if best_bias is not None:
+            self.bias = best_bias
+        return self
+```
+
+## ALU Design
 ```py
 # N-BIT ALU 
 class NBitALU:
