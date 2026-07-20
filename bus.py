@@ -56,9 +56,6 @@ class NuBitBus:
     def clk(self, value):
         self.ctrl = (self.ctrl & ~8) | ((value & 1) << 3)
 
-
-        # bus.py (continued)
-    
     def connect(self, name, device, address_range=None):
         """
         Connect a device to the bus.
