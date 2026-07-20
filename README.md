@@ -101,13 +101,13 @@ class NBitALU:
 
 | Task | Works |
 |------|--------|
-| Add two numbers | ✅ |
-| Subtract two numbers | ✅ |
-| Bitwise AND/OR/XOR | ✅ |
-| Multiply two numbers | ✅ |
-| Compare two numbers | ✅ |
-| Read from memory | ✅ |
-| Write to memory | ✅ |
+| Add two numbers | Tested |
+| Subtract two numbers | Tested |
+| Bitwise AND/OR/XOR | Tested |
+| Multiply two numbers | Tested |
+| Compare two numbers | Tested |
+| Read from memory | Tested |
+| Write to memory | Tested |
 | Run a loop | To do |
 | Output to console | To do |
 
@@ -115,12 +115,12 @@ class NBitALU:
 
 | Gate | Implementation | Status |
 |------|----------------|--------|
-| AND | 1 neuron | ✅ Tested |
-| OR | 1 neuron | ✅ Tested |
-| NAND | 1 neuron | ✅ Tested |
-| NOR | 1 neuron | ✅ Tested |
-| NOT | 1 neuron | ✅ Tested |
-| XOR | 2-layer network | ✅ Tested |
+| AND | 1 neuron | Tested |
+| OR | 1 neuron | Tested |
+| NAND | 1 neuron | Tested |
+| NOR | 1 neuron | Tested |
+| NOT | 1 neuron | Tested |
+| XOR | 2-layer network | Tested |
 
 ---
 
@@ -128,10 +128,10 @@ class NBitALU:
 
 | Unit | Built From | Status |
 |------|------------|--------|
-| Half-Adder | XOR + AND | ✅ Tested |
-| Full-Adder | 2 × Half-Adder + OR | ✅ Tested |
-| 4-bit Adder | 4 × Full-Adder (chained) | ✅ Tested (256/256 tests) |
-| N-bit Adder | N × Full-Adder (chained) | ✅ Designed |
+| Half-Adder | XOR + AND | Tested |
+| Full-Adder | 2 × Half-Adder + OR | Tested |
+| 4-bit Adder | 4 × Full-Adder (chained) | Tested (256/256 tests) |
+| N-bit Adder | N × Full-Adder (chained) | Tested Designed |
 
 ---
 
@@ -139,13 +139,13 @@ class NBitALU:
 
 | Opcode | Mnemonic | Operation | Tested |
 |--------|----------|-----------|----------|
-| 0 | **ADD** | `dest = src1 + src2` | ✅ |
-| 1 | **SUB** | `dest = src1 - src2` | ✅ |
-| 2 | **AND** | `dest = src1 & src2` | ✅ |
-| 3 | **OR** | `dest = src1 \| src2` | ✅ |
-| 4 | **XOR** | `dest = src1 ^ src2` | ✅ |
-| 5 | **MUL** | `dest = src1 * src2` | ✅ |
-| 6 | **CMP** | `compare src1, src2` | ✅ |
+| 0 | **ADD** | `dest = src1 + src2` | Tested |
+| 1 | **SUB** | `dest = src1 - src2` | Tested |
+| 2 | **AND** | `dest = src1 & src2` | Tested |
+| 3 | **OR** | `dest = src1 \| src2` | Tested |
+| 4 | **XOR** | `dest = src1 ^ src2` | Tested |
+| 5 | **MUL** | `dest = src1 * src2` | Tested |
+| 6 | **CMP** | `compare src1, src2` | Tested |
 
 **Flags affected:** Carry (C), Zero (Z), Less (L), Greater (G)
 
@@ -155,12 +155,12 @@ class NBitALU:
 
 | Component | Size | Status |
 |-----------|------|--------|
-| SRAM Cell | 1-bit | ✅ Designed |
-| SRAM Byte | 8-bit | ✅ Designed |
-| SRAM Array | N×M | ✅ Designed |
-| FastSRAM (NumPy) | 64KB | ✅ Implemented |
-| BooleanSRAM (gates) | 256 bytes | ✅ Tested |
-| MemristorSRAM (model) | 256 bytes | ✅ Designed |
+| SRAM Cell | 1-bit | Implemented |
+| SRAM Byte | 8-bit | Implemented |
+| SRAM Array | N×M | Implemented |
+| FastSRAM (NumPy) | 64KB | Implemented |
+| BooleanSRAM (gates) | 256 bytes | Implemented |
+| MemristorSRAM (model) | 256 bytes | Designed |
 
 ---
 
@@ -168,10 +168,10 @@ class NBitALU:
 
 | Bus Line | Width | Direction | Status |
 |----------|-------|-----------|--------|
-| Address | 8-bit | ALU → Bus → Devices | ✅ |
-| Data Out | 8-bit | ALU → Bus → Devices | ✅ |
-| Data In | 8-bit | Devices → Bus → ALU | ✅ |
-| Control | 4-bit | ALU → Bus → Devices | ✅ |
+| Address | 8-bit | ALU → Bus → Devices | Planned |
+| Data Out | 8-bit | ALU → Bus → Devices | Planned |
+| Data In | 8-bit | Devices → Bus → ALU | Planned |
+| Control | 4-bit | ALU → Bus → Devices | Planned |
 
 **Control signals:** RD, WR, SEL, CLK
 
@@ -181,8 +181,8 @@ class NBitALU:
 
 | Device | Address | Status |
 |--------|---------|--------|
-| Console Output | 0xFE (write-only) | ✅ Planned |
-| Keyboard Input | 0xFD (read-only) | ✅ Planned |
+| Console Output | 0xFE (write-only) | Planned |
+| Keyboard Input | 0xFD (read-only) | Planned |
 
 ---
 
@@ -203,4 +203,6 @@ class NBitALU:
 │  6   CMP       compare src1, src2     C, Z, L, G            │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+
 
