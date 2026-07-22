@@ -21,7 +21,7 @@ typedef struct {
     Gate and_gate;
     int* temp1;      // Pre-allocated buffers
     int* temp2;
-    int max_n;       // Maximum size for bounds checking
+    int max_n;       // For bounds checking
 } XorGate;
 
 // --- Base Gate ---
