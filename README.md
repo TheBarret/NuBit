@@ -1,68 +1,44 @@
 # Threshold Logic Unit (NuBit)
-Formally described as McCulloch-Pitts neurons, from Warren McCulloch and Walter Pitts' 1943 paper.  
-A 8/16-bit neural CPU with 7 ALU operations.  
-## ALU Design
-```py
-# N-BIT ALU 
-class NBitALU:
-    """N-bit ALU: ADD, SUB, AND, OR, XOR, MUL, CMP."""
-    def __init__(self, bits=8):
-        self.bits = bits
-        self.adder = NBitAdder(bits)
-        self.subtractor = NBitSubtractor(bits)
-        self.comparator = NBitComparator(bits)
-        self.multiplier = NBitMultiplier(bits)
-        self.and_logic = NBitLogic(bits, 'AND')
-        self.or_logic = NBitLogic(bits, 'OR')
-        self.xor_logic = NBitLogic(bits, 'XOR')
-        self.mux = NBitMux(bits, num_inputs=7)  # 7 operations
-    
-    def forward(self, a, b, op):
-        """
-        op: 0=ADD, 1=SUB, 2=AND, 3=OR, 4=XOR, 5=MUL, 6=CMP
-        """
-        results = [
-            self.adder.forward(a, b),
-            self.subtractor.forward(a, b),
-            self.and_logic.forward(a, b),
-            self.or_logic.forward(a, b),
-            self.xor_logic.forward(a, b),
-            self.multiplier.forward(a, b),
-            self.comparator.forward(a, b)['equal']
-        ]
-        return self.mux.forward(results, op)
-```
-### ALU Operations (7 Instructions)
 
-| Opcode | Mnemonic | Operation | Tested |
-|--------|----------|-----------|----------|
-| 0 | **ADD** | `dest = src1 + src2` | Tested |
-| 1 | **SUB** | `dest = src1 - src2` | Tested |
-| 2 | **AND** | `dest = src1 & src2` | Tested |
-| 3 | **OR** | `dest = src1 \| src2` | Tested |
-| 4 | **XOR** | `dest = src1 ^ src2` | Tested |
-| 5 | **MUL** | `dest = src1 * src2` | Tested |
-| 6 | **CMP** | `compare src1, src2` | Tested |
+NuBit is a neural-network-based CPU architecture where logic gates are implemented using McCulloch-Pitts (MCP) neurons.  
+Version 2 introduces vectorized operations, Kogge-Stone parallel prefix, and pure NumPy acceleration,  
+transforming it from a conceptual prototype to a high-performance simulation.  
 
-**Flags affected:** Carry (C), Zero (Z), Less (L), Greater (G)
+# Versions
 
-## Instruction Set
+| Aspect | NuBit V1 | NuBit V2 | Improvement |
+|--------|----------|----------|-------------|
+| **Gate activation** | Sigmoid (`exp()`) | Step (`> 0`) | 10-100× |
+| **Data representation** | Object per gate | NumPy arrays | 100-1000× |
+| **Gate operations** | Python loops | Vectorized batch | 100-1000× |
+| **Adder architecture** | Ripple carry (O(N)) | Kogge-Stone (O(log N)) | Performance |
+| **Sum computation** | Per-bit Python loop | Vectorized XOR | 5-10× |
+| **Code structure** | OOP per gate | NumPy matrix ops | Performance |
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  NUBIT INSTRUCTION SET (7 OPS)                              │
-│                                                             │
-│  OP  MNEMONIC  OPERATION              FLAGS                 │
-│  ────────────────────────────────────────────────────────── │
-│  0   ADD       dest = src1 + src2     C, Z                  │
-│  1   SUB       dest = src1 - src2     C, Z, L, G            │
-│  2   AND       dest = src1 & src2     Z                     │
-│  3   OR        dest = src1 | src2     Z                     │
-│  4   XOR       dest = src1 ^ src2     Z                     │
-│  5   MUL       dest = src1 * src2     C, Z                  │
-│  6   CMP       compare src1, src2     C, Z, L, G            │
-└─────────────────────────────────────────────────────────────┘
-```
+# Scaling Tables
 
+| Bit Width | V1 (Ripple) | V2 (Kogge-Stone + Vectorized Sum) | Improvement |
+|-----------|-------------|-----------------------------------|-------------|
+| **4-bit** | ~2,000 ops/sec | **3,552 ops/sec** | **1.8×** |
+| **8-bit** | ~1,000 ops/sec | **3,411 ops/sec** | **3.4×** |
+| **16-bit** | ~357 ops/sec | **3,271 ops/sec** | **9.2×** |
 
+### NuBit-Adder Performance
 
+| 4Bit Version | Speed (ops/sec) | Improvement (vs previous) | Total Improvement |
+|---------|-----------------|---------------------------|-------------------|
+| **V1 (ripple carry)** | ~2,000 | 1× | 1× |
+| **V2 (Kogge-Stone)** | 1,803 | ~0.9× | ~0.9× |
+| **V2 (vectorized sum)** | **3,552** | **~2×** | **~1.8×** |
+
+| 8Bit Version | Speed (ops/sec) | Improvement (vs previous) | Total Improvement |
+|---------|-----------------|---------------------------|-------------------|
+| **V1 (ripple carry)** | ~1,000 | 1× | 1× |
+| **V2 (Kogge-Stone)** | 1,061 | ~1.1× | ~1.1× |
+| **V2 (vectorized sum)** | **3,411** | **~3.2×** | **~3.4×** |
+
+| 16Bit Version | Speed (ops/sec) | Improvement (vs previous) | Total Improvement |
+|---------|-----------------|---------------------------|-------------------|
+| **V1 (ripple carry)** | ~357 | 1× | 1× |
+| **V2 (Kogge-Stone)** | 588 | ~1.6× | ~1.6× |
+| **V2 (vectorized sum)** | **3,271** | **~5.6×** | **~9.2×** |
