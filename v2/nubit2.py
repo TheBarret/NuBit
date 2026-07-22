@@ -189,6 +189,126 @@ class Adder:
 
         return result, int(carries[self.bits])
 
+### Subtractor
+
+class Subtractor:
+    """N-bit subtractor using two's complement."""
+
+    def __init__(self, bits=16):
+        self.bits = bits
+        self.not_gate = NOT()
+        self.adder = Adder(bits)
+        self.mask = (1 << bits) - 1
+        self.expected_width = bits
+
+    def forward(self, A, B):
+        """
+        A - B using two's complement.
+
+        A, B: integers (0 to 2^bits - 1)
+        Returns: (result, borrow_out)
+        """
+        # Ensure inputs are within bit width
+        A = A & self.mask
+        B = B & self.mask
+
+        # Convert to bit arrays
+        A_bits = np.array([(A >> i) & 1 for i in range(self.bits)])
+        B_bits = np.array([(B >> i) & 1 for i in range(self.bits)])
+
+        # Two's complement of B: ~B + 1
+        # NOT all bits
+        B_inv = self.not_gate.forward(B_bits)
+
+        # Add 1 to get two's complement
+        B_neg, _ = self.adder.forward(B_inv, 1)
+
+        # A - B = A + (-B)
+        result, borrow = self.adder.forward(A, B_neg)
+
+        # Mask result to bit width
+        result = result & self.mask
+
+        return result, borrow
+
+### Multiplier
+
+class Multiplier:
+    """
+    N-bit multiplier using shift-and-add.
+    Output is 2×bits bits (product can be up to 2N bits).
+    """
+
+    def __init__(self, bits=16):
+        self.bits = bits
+        self.and_gate = AND()
+        # Need 2×bits adder for full product
+        self.adder = Adder(bits * 2)
+        self.expected_width = bits
+        self.mask = (1 << bits) - 1
+
+    def forward(self, A, B):
+        """
+        A × B using shift-and-add.
+
+        A, B: integers (0 to 2^bits - 1)
+        Returns: integer (0 to 2^(2*bits) - 1)
+        """
+        # Mask inputs to bit width
+        A = A & self.mask
+        B = B & self.mask
+
+        result = 0
+
+        for i in range(self.bits):
+            # Check if bit i of B is set
+            if (B >> i) & 1:
+                # Add shifted A to result
+                shifted = A << i
+                result = self.adder.forward(result, shifted)[0]
+
+        return result
+
+class SAMultiplier:
+    """
+    N-bit multiplier using shift-and-add.
+    Returns full 2×bits product.
+    """
+
+    def __init__(self, bits=16):
+        self.bits = bits
+        self.and_gate = AND()
+        # Need 2×bits adder for full product
+        self.adder = Adder(bits * 2)
+        self.expected_width = bits
+        self.mask = (1 << bits) - 1
+        self.full_mask = (1 << (bits * 2)) - 1
+
+    def forward(self, A, B):
+        """
+        A × B using shift-and-add.
+
+        A, B: integers (0 to 2^bits - 1)
+        Returns: integer (0 to 2^(2*bits) - 1)
+        """
+        # Mask inputs to bit width
+        A = A & self.mask
+        B = B & self.mask
+
+        result = 0
+
+        # Perform shift-and-add multiplication
+        for i in range(self.bits):
+            # Check if bit i of B is set
+            if (B >> i) & 1:
+                # Add shifted A to result
+                shifted = A << i
+                result = self.adder.forward(result, shifted)[0]
+
+        # Mask to full width (2×bits)
+        result = result & self.full_mask
+
+        return result
 
 ### Bitwise Logic
 
