@@ -1,5 +1,6 @@
 #include "gates.h"
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 // --- Base Gate ---
@@ -17,7 +18,7 @@ void nor_gate_init(Gate* g)  { gate_init(g, -1.0f, -1.0f, 0.5f); }
 void gate_forward(const Gate* g, const int* x1, const int* x2, int n, int* out) {
     for (int i = 0; i < n; i++) {
         float linear = (g->w1 * (float)x1[i]) + (g->w2 * (float)x2[i]) + g->bias;
-        out[i] = (linear > 0.0f) ? 1 : 0; // McCulloch-Pitts threshold
+        out[i] = (linear > 0.0f) ? 1 : 0;
     }
 }
 
@@ -49,10 +50,9 @@ void xor_gate_init(XorGate* g, int max_n) {
     and_gate_init(&g->and_gate);
     or_gate_init(&g->or_gate);
     nand_gate_init(&g->nand_gate);
-
-    // Pre-allocate temp buffers once
-    g->temp1 = (int*)malloc(max_n * sizeof(int));
-    g->temp2 = (int*)malloc(max_n * sizeof(int));
+    g->max_n = max_n;
+    g->temp1 = (int*)calloc(max_n, sizeof(int));
+    g->temp2 = (int*)calloc(max_n, sizeof(int));
     assert(g->temp1 != NULL && g->temp2 != NULL);
 }
 
@@ -62,8 +62,7 @@ void xor_gate_free(XorGate* g) {
 }
 
 void xor_gate_forward(XorGate* g, const int* x1, const int* x2, int n, int* out) {
-    // DESIGN SHIFT: Uses pre-allocated temp buffers instead of malloc/free.
-    // This perfectly mimics NumPy's intermediate array creation but at C speeds.
+    assert(n <= g->max_n);
     gate_forward(&g->or_gate, x1, x2, n, g->temp1);
     gate_forward(&g->nand_gate, x1, x2, n, g->temp2);
     gate_forward(&g->and_gate, g->temp1, g->temp2, n, out);
