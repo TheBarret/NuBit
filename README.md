@@ -32,44 +32,7 @@ class NBitALU:
         ]
         return self.mux.forward(results, op)
 ```
-
-| Task | Works |
-|------|--------|
-| Add two numbers | Tested |
-| Subtract two numbers | Tested |
-| Bitwise AND/OR/XOR | Tested |
-| Multiply two numbers | Tested |
-| Compare two numbers | Tested |
-| Read from memory | Tested |
-| Write to memory | Tested |
-| Run a loop | To do |
-| Output to console | To do |
-
-### 1. Logic Gates (Atom)
-
-| Gate | Implementation | Status |
-|------|----------------|--------|
-| AND | 1 neuron | Tested |
-| OR | 1 neuron | Tested |
-| NAND | 1 neuron | Tested |
-| NOR | 1 neuron | Tested |
-| NOT | 1 neuron | Tested |
-| XOR | 2-layer network | Tested |
-
----
-
-### 2. Arithmetic Units
-
-| Unit | Built From | Status |
-|------|------------|--------|
-| Half-Adder | XOR + AND | Tested |
-| Full-Adder | 2 × Half-Adder + OR | Tested |
-| 4-bit Adder | 4 × Full-Adder (chained) | Tested (256/256 tests) |
-| N-bit Adder | N × Full-Adder (chained) | Tested Designed |
-
----
-
-### 3. ALU Operations (7 Instructions)
+### ALU Operations (7 Instructions)
 
 | Opcode | Mnemonic | Operation | Tested |
 |--------|----------|-----------|----------|
@@ -82,43 +45,6 @@ class NBitALU:
 | 6 | **CMP** | `compare src1, src2` | Tested |
 
 **Flags affected:** Carry (C), Zero (Z), Less (L), Greater (G)
-
----
-
-### 4. Memory
-
-| Component | Size | Status |
-|-----------|------|--------|
-| SRAM Cell | 1-bit | Implemented |
-| SRAM Byte | 8-bit | Implemented |
-| SRAM Array | N×M | Implemented |
-| FastSRAM (NumPy) | 64KB | Implemented |
-| BooleanSRAM (gates) | 256 bytes | Implemented |
-| MemristorSRAM (model) | 256 bytes | Designed |
-
----
-
-### 5. Bus
-
-| Bus Line | Width | Direction | Status |
-|----------|-------|-----------|--------|
-| Address | 8-bit | ALU → Bus → Devices | Planned |
-| Data Out | 8-bit | ALU → Bus → Devices | Planned |
-| Data In | 8-bit | Devices → Bus → ALU | Planned |
-| Control | 4-bit | ALU → Bus → Devices | Planned |
-
-**Control signals:** RD, WR, SEL, CLK
-
----
-
-### 6. I/O
-
-| Device | Address | Status |
-|--------|---------|--------|
-| Console Output | 0xFE (write-only) | Planned |
-| Keyboard Input | 0xFD (read-only) | Planned |
-
----
 
 ## Instruction Set
 
