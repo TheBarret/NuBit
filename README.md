@@ -15,6 +15,20 @@ transforming it from a conceptual prototype to a high-performance simulation.
 | **Sum computation** | Per-bit Python loop | Vectorized XOR | 5-10× |
 | **Code structure** | OOP per gate | NumPy matrix ops | Performance |
 
+# Components
+
+| Component | Bit Width | Tests | Status |
+|-----------|-----------|-------|--------|
+| AND gate | 1-bit | Truth table | functional |
+| OR gate | 1-bit | Truth table | functional |
+| NAND gate | 1-bit | Truth table | functional |
+| NOR gate | 1-bit | Truth table | functional |
+| NOT gate | 1-bit | Truth table | functional |
+| XOR gate | 1-bit | Truth table | functional |
+| Carry Lookahead Adder | 4-bit | 256/256 | functional |
+| Carry Lookahead Adder | 8-bit | 10,000 random | functional |
+| Carry Lookahead Adder | 16-bit | 10,000 random | functional |
+
 # Scaling Tables
 
 | Bit Width | V1 (Ripple) | V2 (Kogge-Stone + Vectorized Sum) | Improvement |
