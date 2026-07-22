@@ -21,22 +21,23 @@ transforming it from a conceptual prototype to a high-performance simulation.
 
 ### Instruction Set
 
-| Opcode | Mnemonic | Operation |
-|--------|----------|-----------|
-| 0 | ADD | Rdest = Rsrc1 + Rsrc2 |
-| 1 | SUB | Rdest = Rsrc1 - Rsrc2 |
-| 2 | AND | Rdest = Rsrc1 & Rsrc2 |
-| 3 | OR | Rdest = Rsrc1 \| Rsrc2 |
-| 4 | XOR | Rdest = Rsrc1 ^ Rsrc2 |
-| 5 | MUL | Rdest = Rsrc1 * Rsrc2 |
-| 6 | CMP | Compare Rsrc1, Rsrc2 (sets flags) |
-| 7 | LDI | Rdest = Immediate (4-bit) |
-| 8 | LD | Rdest = [Rsrc1] |
-| 9 | ST | [Rdest] = Rsrc1 |
-| 10 | JMP | PC = Rsrc1 |
-| 11 | JZ | if Z: PC = Rsrc1 |
-| 12 | JNZ | if !Z: PC = Rsrc1 |
-| 15 | HALT | Stop execution |
+| Opcode | Mnemonic | Operation | Format |
+|--------|----------|-----------|--------|
+| 0x0 | ADD | Rd = Rs1 + Rs2 | `ADD Rd, Rs1, Rs2` |
+| 0x1 | SUB | Rd = Rs1 - Rs2 | `SUB Rd, Rs1, Rs2` |
+| 0x2 | AND | Rd = Rs1 & Rs2 | `AND Rd, Rs1, Rs2` |
+| 0x3 | OR | Rd = Rs1 \| Rs2 | `OR Rd, Rs1, Rs2` |
+| 0x4 | XOR | Rd = Rs1 ^ Rs2 | `XOR Rd, Rs1, Rs2` |
+| 0x5 | MUL | Rd = Rs1 * Rs2 | `MUL Rd, Rs1, Rs2` |
+| 0x6 | CMP | Compare Rs1, Rs2 | `CMP Rs1, Rs2` |
+| 0x7 | LDI | Rd = imm4 | `LDI Rd, imm4` |
+| 0x8 | LDI16 | Rd = next word | `LDI16 Rd` |
+| 0x9 | LD | Rd = [Rs1] | `LD Rd, [Rs1]` |
+| 0xA | ST | [Rd] = Rs1 | `ST [Rd], Rs1` |
+| 0xB | JMP | PC = Rs1 | `JMP Rs1` |
+| 0xC | JZ | if Z: PC = Rs1 | `JZ Rs1` |
+| 0xD | JNZ | if !Z: PC = Rs1 | `JNZ Rs1` |
+| 0xF | HALT | Stop | `HALT` |
 
 # Versions
 
