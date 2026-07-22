@@ -1,4 +1,5 @@
-
+# Threshold Logic Unit (NuBit)
+Formally described as McCulloch-Pitts neurons, from Warren McCulloch and Walter Pitts' 1943 paper.  
 A 8/16-bit neural CPU with 7 ALU operations.  
 
 ## Atom
