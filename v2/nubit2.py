@@ -217,17 +217,17 @@ class Subtractor:
         B_bits = np.array([(B >> i) & 1 for i in range(self.bits)])
 
         # Two's complement of B: ~B + 1
-        # NOT all bits
         B_inv = self.not_gate.forward(B_bits)
-
-        # Add 1 to get two's complement
         B_neg, _ = self.adder.forward(B_inv, 1)
 
         # A - B = A + (-B)
-        result, borrow = self.adder.forward(A, B_neg)
+        result, carry = self.adder.forward(A, B_neg)
 
         # Mask result to bit width
         result = result & self.mask
+
+        # Borrow is inverse of carry (carry=1 means no borrow)
+        borrow = 0 if carry else 1
 
         return result, borrow
 
@@ -360,7 +360,7 @@ class BitWiseLogic:
 
 ### Comparator
 
-class Comparator:
+class ComparatorBroken:
     """
     N-bit comparator.
     Returns: equal, less_than, greater_than flags.
@@ -422,6 +422,80 @@ class Comparator:
 
         # ---------- GREATER-THAN ----------
         greater_than = 1 if not equal and not less_than else 0
+
+        return {
+            'equal': equal,
+            'less_than': less_than,
+            'greater_than': greater_than
+        }
+
+
+class Comparator:
+    """
+    N-bit comparator.
+    Returns: equal, less_than, greater_than flags.
+    """
+
+    def __init__(self, bits=16):
+        self.bits = bits
+        self.xor_gate = XOR()
+        self.and_gate = AND()
+        self.or_gate = OR()
+        self.not_gate = NOT()
+        self.expected_width = bits
+
+    def forward(self, A, B):
+        """
+        Compare A and B.
+
+        A, B: integers (0 to 2^bits - 1)
+        Returns: dict with 'equal', 'less_than', 'greater_than'
+        """
+        # Convert inputs to bit arrays
+        if isinstance(A, (int, np.integer)):
+            A_bits = np.array([(A >> i) & 1 for i in range(self.bits)])
+        else:
+            A_bits = np.asarray(A)
+
+        if isinstance(B, (int, np.integer)):
+            B_bits = np.array([(B >> i) & 1 for i in range(self.bits)])
+        else:
+            B_bits = np.asarray(B)
+
+        # Assert expected width
+        assert len(A_bits) == self.bits, f"A length {len(A_bits)} != {self.bits}"
+        assert len(B_bits) == self.bits, f"B length {len(B_bits)} != {self.bits}"
+
+        # ---------- EQUALITY ----------
+        xor_results = self.xor_gate.forward(A_bits, B_bits)
+
+        equal = 1
+        for i in range(self.bits):
+            if xor_results[i] == 1:
+                equal = 0
+                break
+
+        # ---------- LESS-THAN & GREATER-THAN ----------
+        # Find most significant bit where A and B differ
+        less_than = 0
+        greater_than = 0
+
+        # Start from MSB to LSB
+        for i in range(self.bits - 1, -1, -1):
+            a_bit = A_bits[i]
+            b_bit = B_bits[i]
+
+            if a_bit != b_bit:
+                if a_bit == 0 and b_bit == 1:
+                    less_than = 1
+                else:  # a_bit == 1 and b_bit == 0
+                    greater_than = 1
+                break  # Found MSB difference, stop
+
+        # FIX: If equal, both should be 0
+        if equal == 1:
+            less_than = 0
+            greater_than = 0
 
         return {
             'equal': equal,
