@@ -1,6 +1,6 @@
 # Threshold Logic Unit (NuBit)
 
-NuBit is a neural-network-based CPU architecture where logic gates are implemented using McCulloch-Pitts (MCP) neurons.  
+A neural-network-based CPU architecture where logic gates are implemented using McCulloch-Pitts (MCP) neurons.  
 Version 2 introduces vectorized operations, Kogge-Stone parallel prefix, and pure NumPy acceleration,  
 transforming it from a conceptual prototype to a high-performance simulation.  
 
