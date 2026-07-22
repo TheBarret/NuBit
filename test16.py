@@ -2,12 +2,12 @@
 
 import numpy as np
 from storage import UnifiedBus, Memory
-from machine16 import CPU16
+from machine16 import CPU16, Opcode
 
-def test_cpu():
-    """Test CPU with bus and memory."""
+def test_cpu16():
+    """Test the new CPU16 architecture."""
     print("=" * 60)
-    print("CPU16 TEST")
+    print("CPU16 V2 TEST")
     print("=" * 60)
 
     # Setup
@@ -17,48 +17,37 @@ def test_cpu():
 
     cpu = CPU16(bus)
 
-    # Program: 5 + 3 = 8 using LDI
-    # 0x0100: LDI R0, 5     (op=7, dest=0, src1=0, imm=5) → 0x7005
-    # 0x0101: LDI R1, 3     (op=7, dest=1, src1=0, imm=3) → 0x7103
-    # 0x0102: ADD R2, R0, R1 (op=0, dest=2, src1=0, src2=1) → 0x0201
-    # 0x0103: HALT          (op=15, all zeros) → 0xF000
-
+    # Test program: 5 + 3 = 8
+    # Uses LDI16 to load 16-bit values
     program = [
-        0x7005,  # LDI R0, 5
-        0x7103,  # LDI R1, 3
-        0x0201,  # ADD R2, R0, R1
-        0xF000   # HALT
+        (Opcode.LDI16 << 12) | (0 << 8),  # LDI16 R0 (next word is immediate)
+        0x0005,                           # Value 5
+        (Opcode.LDI16 << 12) | (1 << 8),  # LDI16 R1
+        0x0003,                           # Value 3
+        (Opcode.ADD << 12) | (2 << 8) | (0 << 4) | 1,  # ADD R2, R0, R1
+        (Opcode.HALT << 12)               # HALT
     ]
 
-    # Load program into memory
+    # Load program
     for i, inst in enumerate(program):
         mem.write(0x0100 + i, inst)
 
-    # Set PC
     cpu.pc = 0x0100
 
-    print("Program loaded at 0x0100:")
-    for i in range(5):
-        inst = mem.read(0x0100 + i)
-        print(f"  0x{0x0100+i:04X}: 0x{inst:04X}")
+    # Run with verbose output
+    cycles = cpu.run(max_cycles=20, verbose=True)
 
-    # Run
-    cycles = cpu.run()
-    print(f"\nExecuted {cycles} cycles")
+    print("\n" + "=" * 60)
+    print(f"Executed {cycles} cycles")
     print(f"R0: {cpu.regs[0]} (expected 5)")
     print(f"R1: {cpu.regs[1]} (expected 3)")
     print(f"R2: {cpu.regs[2]} (expected 8)")
+    print(f"Flags: {cpu.alu.flags}")
 
     if cpu.regs[2] == 8:
         print("PASSED")
     else:
         print("FAILED")
 
-    # Bus stats
-    print(f"\nBus stats:")
-    print(f"  Cycles: {bus.cycles}")
-    print(f"  Last op: {bus.last_op}")
-    print(f"  Memory stats: {mem.get_stats()}")
-
 if __name__ == "__main__":
-    test_cpu()
+    test_cpu16()
