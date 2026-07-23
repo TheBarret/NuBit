@@ -5,6 +5,21 @@
 The Python prototype proved the concept, the C port performance is ~228,000 ops/sec for 16-bit operations,  
 roughly 70× faster than Python, while preserving the neural architecture.  
 
+Perf results (on a AMD-8Core):
+```
+1000000 ops each, 4000000 ops total:
+  ADD       98102 ops/sec  (10193.424 ms total, 10.193 µs/op)
+  SUB       97956 ops/sec  (10208.638 ms total, 10.209 µs/op)
+  MUL      185006 ops/sec  (5405.216 ms total, 5.405 µs/op)
+  CMP       98347 ops/sec  (10168.064 ms total, 10.168 µs/op)
+
+============================================================
+ALU Performance Summary:
+  Total time:  35975.34 ms
+  Total ops:   4000000
+  Average:     ~111187 ops/sec (total ops / total time)
+```
+
 ## Files
 
 | File | Role |
