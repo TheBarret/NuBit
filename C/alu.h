@@ -26,6 +26,7 @@ typedef enum {
     OP_JMP   = 0xB,
     OP_JZ    = 0xC,
     OP_JNZ   = 0xD,
+    OP_SYS   = 0xE,
     OP_HALT  = 0xF
 } Opcode;
 

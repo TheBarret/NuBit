@@ -6,8 +6,7 @@
 #include "alu.h"
 
 // Forward declaration of Bus struct
-typedef struct Bus Bus;
-
+/*typedef struct Bus Bus;
 // Bus Interface
 struct Bus {
     uint16_t addr;
@@ -16,6 +15,16 @@ struct Bus {
     int rd;             // Read signal (1 = reading)
     int wr;             // Write signal (1 = writing)
     uint16_t (*tick)(Bus* bus);  // Use Bus*, not struct Bus*
+    };*/
+
+typedef struct Bus Bus;
+struct Bus {
+    uint16_t addr;
+    uint16_t data_in;
+    uint16_t data_out;
+    int rd;
+    int wr;
+    uint16_t (*tick)(Bus* bus);
 };
 
 // CPU16 Structure

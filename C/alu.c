@@ -82,8 +82,7 @@ void multiplier_free(SAMultiplier* mul) {
     adder_free(&mul->adder);
 }
 
-// version 1
-/* uint64_t multiplier_forward(SAMultiplier* mul, uint64_t A, uint64_t B) {
+uint64_t multiplier_forward(SAMultiplier* mul, uint64_t A, uint64_t B) {
     A &= mul->mask;
     B &= mul->mask;
 
@@ -97,9 +96,9 @@ void multiplier_free(SAMultiplier* mul) {
         }
     }
     return result & mul->full_mask;
-    } */
+    }
 // debugger version
-uint64_t multiplier_forward(SAMultiplier* mul, uint64_t A, uint64_t B) {
+/* uint64_t multiplier_forward(SAMultiplier* mul, uint64_t A, uint64_t B) {
     A &= mul->mask;
     B &= mul->mask;
 
@@ -117,7 +116,7 @@ uint64_t multiplier_forward(SAMultiplier* mul, uint64_t A, uint64_t B) {
            (unsigned int)A, (unsigned int)B, (unsigned int)result);
 
     return result & mul->full_mask;
-}
+    } */
 
 // =====================================================================
 // BITWISE LOGIC

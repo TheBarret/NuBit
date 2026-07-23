@@ -19,6 +19,7 @@ static bool op_jmp(CPU16* cpu, uint8_t dest, uint8_t src1, uint8_t src2);
 static bool op_jz(CPU16* cpu, uint8_t dest, uint8_t src1, uint8_t src2);
 static bool op_jnz(CPU16* cpu, uint8_t dest, uint8_t src1, uint8_t src2);
 static bool op_halt(CPU16* cpu, uint8_t dest, uint8_t src1, uint8_t src2);
+static bool op_sys(CPU16* cpu, uint8_t dest, uint8_t src1, uint8_t src2);
 
 // CPU Initialization
 void cpu_init(CPU16* cpu, Bus* bus) {
@@ -46,7 +47,7 @@ void cpu_init(CPU16* cpu, Bus* bus) {
     cpu->dispatch[OP_JMP] = op_jmp;
     cpu->dispatch[OP_JZ] = op_jz;
     cpu->dispatch[OP_JNZ] = op_jnz;
-    // OP_HALT = 0xF is set below
+    cpu->dispatch[OP_SYS] = op_sys;
     cpu->dispatch[OP_HALT] = op_halt;
     // Slot 0xE (14) remains NULL = unknown opcode
 }
@@ -75,16 +76,16 @@ void cpu_write_memory(CPU16* cpu, uint16_t addr, uint16_t data) {
 }
 
 // Fetch/Decode/Execute
-/* uint16_t cpu_fetch(CPU16* cpu) {
+uint16_t cpu_fetch(CPU16* cpu) {
     if (cpu->halted) {
         return 0;
     }
     uint16_t instruction = cpu_read_memory(cpu, cpu->pc);
     cpu->pc = (cpu->pc + 1) & 0xFFFF;
     return instruction;
-    } */
+}
 // debugger version
-uint16_t cpu_fetch(CPU16* cpu) {
+/* uint16_t cpu_fetch(CPU16* cpu) {
     if (cpu->halted) {
         return 0;
     }
@@ -92,7 +93,7 @@ uint16_t cpu_fetch(CPU16* cpu) {
     printf(" * (FETCH: PC=0x%04X IR=0x%04X)\n", cpu->pc, instruction);
     cpu->pc = (cpu->pc + 1) & 0xFFFF;
     return instruction;
-}
+    } */
 
 void cpu_decode(uint16_t instruction, uint8_t* op, uint8_t* dest, uint8_t* src1, uint8_t* src2) {
     *op = (instruction >> 12) & 0xF;
@@ -209,6 +210,45 @@ static bool op_halt(CPU16* cpu, uint8_t dest, uint8_t src1, uint8_t src2) {
     // Halt CPU
     cpu->halted = true;
     return false;
+}
+
+static bool op_sys(CPU16* cpu, uint8_t syscall_id, uint8_t arg1_reg, uint8_t arg2_reg) {
+    (void)arg2_reg; // Reserved for string length, file descriptors, etc
+    uint16_t arg1 = cpu->regs[arg1_reg];
+
+    switch (syscall_id) {
+        case 0: { // SYS_PRINT_STR: arg1_reg holds memory address of null-terminated string
+            uint16_t addr = arg1;
+            while (1) {
+                uint16_t ch = cpu_read_memory(cpu, addr);
+                if (ch == 0) break; // Null terminator
+                putchar((char)(ch & 0xFF));
+                addr = (addr + 1) & 0xFFFF;
+            }
+            fflush(stdout);
+            break;
+        }
+        case 1: { // SYS_PRINT_INT: arg1_reg holds the 16-bit signed integer to print
+            int16_t val = (int16_t)arg1;
+            printf("%d", val);
+            fflush(stdout);
+            break;
+        }
+        case 2: { // SYS_PRINT_CHAR: arg1_reg holds the ASCII character to print
+            putchar((char)(arg1 & 0xFF));
+            fflush(stdout);
+            break;
+        }
+        case 3: { // SYS_EXIT: arg1_reg holds the exit code
+            cpu->halted = true;
+            // Note: In a full runner, you might capture this to return from main()
+            break;
+        }
+        default:
+            printf("\n  WARNING: Unknown system call: %d\n", syscall_id);
+            break;
+    }
+    return true;
 }
 
 // Main Execution Loop
