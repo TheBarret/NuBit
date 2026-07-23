@@ -75,11 +75,21 @@ void cpu_write_memory(CPU16* cpu, uint16_t addr, uint16_t data) {
 }
 
 // Fetch/Decode/Execute
+/* uint16_t cpu_fetch(CPU16* cpu) {
+    if (cpu->halted) {
+        return 0;
+    }
+    uint16_t instruction = cpu_read_memory(cpu, cpu->pc);
+    cpu->pc = (cpu->pc + 1) & 0xFFFF;
+    return instruction;
+    } */
+// debugger version
 uint16_t cpu_fetch(CPU16* cpu) {
     if (cpu->halted) {
         return 0;
     }
     uint16_t instruction = cpu_read_memory(cpu, cpu->pc);
+    printf(" * (FETCH: PC=0x%04X IR=0x%04X)\n", cpu->pc, instruction);
     cpu->pc = (cpu->pc + 1) & 0xFFFF;
     return instruction;
 }

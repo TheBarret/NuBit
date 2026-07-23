@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
 
 // =====================================================================
 // HELPER FUNCTIONS
@@ -42,6 +43,12 @@ int subtractor_forward(Subtractor* sub, uint64_t A, uint64_t B, uint64_t* result
     A &= sub->mask;
     B &= sub->mask;
 
+    // Special case: A == B -> result 0, borrow 0
+    if (A == B) {
+        *result = 0;
+        return 0;
+    }
+
     // Use neural NOT gate for authenticity
     int_to_bits(B, sub->bits, sub->B_inv_bits);
     not_gate_forward(&sub->not_gate, sub->B_inv_bits, sub->bits, sub->B_inv_bits);
@@ -75,6 +82,23 @@ void multiplier_free(SAMultiplier* mul) {
     adder_free(&mul->adder);
 }
 
+// version 1
+/* uint64_t multiplier_forward(SAMultiplier* mul, uint64_t A, uint64_t B) {
+    A &= mul->mask;
+    B &= mul->mask;
+
+    uint64_t result = 0;
+    for (int i = 0; i < mul->bits; i++) {
+        if ((B >> i) & 1) {
+            uint64_t shifted = A << i;
+            uint64_t temp_res = 0;
+            adder_forward(&mul->adder, result, shifted, 0, &temp_res);
+            result = temp_res;
+        }
+    }
+    return result & mul->full_mask;
+    } */
+// debugger version
 uint64_t multiplier_forward(SAMultiplier* mul, uint64_t A, uint64_t B) {
     A &= mul->mask;
     B &= mul->mask;
@@ -88,6 +112,10 @@ uint64_t multiplier_forward(SAMultiplier* mul, uint64_t A, uint64_t B) {
             result = temp_res;
         }
     }
+
+    printf(" * (MUL 0x%04X * 0x%04X = 0x%08X)\n",
+           (unsigned int)A, (unsigned int)B, (unsigned int)result);
+
     return result & mul->full_mask;
 }
 
@@ -162,15 +190,36 @@ CmpResult comparator_forward(Comparator* cmp, uint64_t A, uint64_t B) {
 
     CmpResult res = {1, 0, 0};
 
-    for (int i = cmp->bits - 1; i >= 0; i--) {
+    // Check equality first
+    for (int i = 0; i < cmp->bits; i++) {
         if (cmp->xor_results[i] == 1) {
             res.equal = 0;
-            if (cmp->A_bits[i] == 0 && cmp->B_bits[i] == 1) {
-                res.less_than = 1;
-            } else {
-                res.greater_than = 1;
-            }
             break;
+        }
+    }
+
+    // If not equal, determine less_than using signed comparison
+    if (!res.equal) {
+        // Get sign bits (MSB)
+        int sign_a = cmp->A_bits[cmp->bits - 1];
+        int sign_b = cmp->B_bits[cmp->bits - 1];
+
+        if (sign_a != sign_b) {
+            // Different signs: negative is less than positive
+            res.less_than = (sign_a == 1) ? 1 : 0;
+            res.greater_than = (sign_a == 0) ? 1 : 0;
+        } else {
+            // Same sign: compare normally from MSB
+            for (int i = cmp->bits - 1; i >= 0; i--) {
+                if (cmp->A_bits[i] != cmp->B_bits[i]) {
+                    if (cmp->A_bits[i] == 0 && cmp->B_bits[i] == 1) {
+                        res.less_than = 1;
+                    } else {
+                        res.greater_than = 1;
+                    }
+                    break;
+                }
+            }
         }
     }
 

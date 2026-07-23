@@ -1,132 +1,393 @@
+// test_cpu.c - Complete CPU test harness
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
-#include <time.h>
-#include "gates.h"
-#include "adder.h"
-#include "alu.h"
+#include <string.h>
+#include <assert.h>
+#include "cpu.h"
 
-// Performance benchmark function
-void benchmark_alu() {
-    printf("PERFORMANCE BENCHMARK\n");
+// ============================================================
+// 1. SIMPLE MEMORY BUS IMPLEMENTATION
+// ============================================================
 
-    ALU16 alu;
-    alu_init(&alu, 16);
+uint16_t memory[65536];  // 64KB memory
 
-    const int ITERATIONS = 1000000;  // 1 million operations
-    uint64_t result = 0;
-
-    printf("\nRunning %d ADD operations...\n", ITERATIONS);
-
-    clock_t start = clock();
-    for (int i = 0; i < ITERATIONS; i++) {
-        result = alu_forward(&alu, i & 0xFFFF, (i * 2) & 0xFFFF, OP_ADD);
+uint16_t bus_tick(Bus* bus) {
+    if (bus->rd) {
+        bus->data_in = memory[bus->addr];
+        return bus->data_in;
+    } else if (bus->wr) {
+        memory[bus->addr] = bus->data_out;
+        return bus->data_out;
     }
-    clock_t end = clock();
-
-    double elapsed_ms = (double)(end - start) / CLOCKS_PER_SEC * 1000.0;
-    double ops_per_sec = (double)ITERATIONS / (elapsed_ms / 1000.0);
-
-    printf("\n  Time: %.2f ms\n", elapsed_ms);
-    printf("  Operations: %d\n", ITERATIONS);
-    printf("  Speed: %.0f ops/sec\n", ops_per_sec);
-    printf("  Time per op: %.3f µs\n", (elapsed_ms * 1000.0) / ITERATIONS);
-
-    // Also test SUB, MUL, and CMP
-    printf("\n");
-
-    // SUB benchmark
-    start = clock();
-    for (int i = 0; i < ITERATIONS; i++) {
-        result = alu_forward(&alu, (i * 3) & 0xFFFF, (i * 2) & 0xFFFF, OP_SUB);
-    }
-    end = clock();
-    elapsed_ms = (double)(end - start) / CLOCKS_PER_SEC * 1000.0;
-    ops_per_sec = (double)ITERATIONS / (elapsed_ms / 1000.0);
-    printf("  SUB: %.0f ops/sec\n", ops_per_sec);
-
-    // MUL benchmark
-    start = clock();
-    for (int i = 0; i < ITERATIONS; i++) {
-        result = alu_forward(&alu, i & 0xFF, i & 0xFF, OP_MUL);
-    }
-    end = clock();
-    elapsed_ms = (double)(end - start) / CLOCKS_PER_SEC * 1000.0;
-    ops_per_sec = (double)ITERATIONS / (elapsed_ms / 1000.0);
-    printf("  MUL: %.0f ops/sec\n", ops_per_sec);
-
-    // CMP benchmark
-    start = clock();
-    for (int i = 0; i < ITERATIONS; i++) {
-        result = alu_forward(&alu, i & 0xFFFF, (i * 2) & 0xFFFF, OP_CMP);
-    }
-    end = clock();
-    elapsed_ms = (double)(end - start) / CLOCKS_PER_SEC * 1000.0;
-    ops_per_sec = (double)ITERATIONS / (elapsed_ms / 1000.0);
-    printf("  CMP: %.0f ops/sec\n", ops_per_sec);
-
-    alu_free(&alu);
-
-    printf("\n============================================================\n");
-    printf("C ALU Performance Summary:\n");
-    printf("  Average: ~%.0f ops/sec\n",
-           (double)(ITERATIONS * 4) /
-           (((double)(end - start) / CLOCKS_PER_SEC * 1000.0) / 1000.0));
-    printf("============================================================\n");
+    return 0;
 }
 
+void bus_init(Bus* bus) {
+    memset(memory, 0, sizeof(memory));
+    bus->addr = 0;
+    bus->data_in = 0;
+    bus->data_out = 0;
+    bus->rd = 0;
+    bus->wr = 0;
+    bus->tick = bus_tick;
+}
+
+void cpu_load_program(CPU16* cpu, const uint16_t* program, int size) {
+    for (int i = 0; i < size && i < 65536; i++) {
+        memory[i] = program[i];
+    }
+    cpu->pc = 0x0000;
+}
+
+// ============================================================
+// 2. TEST HELPER: Verify Register Values
+// ============================================================
+
+#define ASSERT_REG(cpu, reg, expected) \
+    do { \
+        if ((cpu)->regs[reg] != (expected)) { \
+            printf("  FAIL: R%d = 0x%04X (expected 0x%04X)\n", \
+                   reg, (cpu)->regs[reg], (expected)); \
+            return false; \
+        } \
+    } while(0)
+
+#define ASSERT_PC(cpu, expected) \
+    do { \
+        if ((cpu)->pc != (expected)) { \
+            printf("  FAIL: PC = 0x%04X (expected 0x%04X)\n", \
+                   (cpu)->pc, (expected)); \
+            return false; \
+        } \
+    } while(0)
+
+#define ASSERT_FLAG(cpu, flag, expected) \
+    do { \
+        if ((cpu)->alu.flags.flag != (expected)) { \
+            printf("  FAIL: flag %s = %d (expected %d)\n", \
+                   #flag, (cpu)->alu.flags.flag, (expected)); \
+            return false; \
+        } \
+    } while(0)
+
+// ============================================================
+// 3. INSTRUCTION MACROS (for building programs)
+// ============================================================
+
+#define INSTR(op, dest, src1, src2)  ((op << 12) | (dest << 8) | (src1 << 4) | src2)
+
+#define ADD(d, s1, s2)  INSTR(OP_ADD, d, s1, s2)
+#define SUB(d, s1, s2)  INSTR(OP_SUB, d, s1, s2)
+#define AND(d, s1, s2)  INSTR(OP_AND, d, s1, s2)
+#define OR(d, s1, s2)   INSTR(OP_OR, d, s1, s2)
+#define XOR(d, s1, s2)  INSTR(OP_XOR, d, s1, s2)
+#define MUL(d, s1, s2)  INSTR(OP_MUL, d, s1, s2)
+#define CMP(s1, s2)     INSTR(OP_CMP, 0, s1, s2)
+#define LDI(d, imm)     INSTR(OP_LDI, d, 0, imm)
+#define LDI16(d)        INSTR(OP_LDI16, d, 0, 0)
+#define LD(d, s1)       INSTR(OP_LD, d, s1, 0)
+#define ST(d, s1)       INSTR(OP_ST, d, s1, 0)
+#define JMP(s1)         INSTR(OP_JMP, 0, s1, 0)
+#define JZ(s1)          INSTR(OP_JZ, 0, s1, 0)
+#define JNZ(s1)         INSTR(OP_JNZ, 0, s1, 0)
+#define HALT()          INSTR(OP_HALT, 0, 0, 0)
+
+#define DATA(value)     (value & 0xFFFF)
+
+// ============================================================
+// 4. TEST CASES
+// ============================================================
+
+bool test_add(CPU16* cpu) {
+    printf("  ADD test...\n");
+
+    uint16_t program[] = {
+        LDI(1, 5),      // R1 = 5
+        LDI(2, 3),      // R2 = 3
+        ADD(0, 1, 2),   // R0 = R1 + R2
+        HALT()
+    };
+
+    cpu_load_program(cpu, program, sizeof(program)/sizeof(program[0]));
+    cpu->pc = 0;
+    cpu_run(cpu, 10, false);
+
+    ASSERT_REG(cpu, 0, 8);
+    ASSERT_FLAG(cpu, zero, 0);
+    ASSERT_FLAG(cpu, carry, 0);
+
+    printf("    PASS\n");
+    return true;
+}
+
+bool test_sub(CPU16* cpu) {
+    printf("  SUB test...\n");
+
+    uint16_t program[] = {
+        LDI(1, 10),     // R1 = 10
+        LDI(2, 4),      // R2 = 4
+        SUB(0, 1, 2),   // R0 = R1 - R2
+        HALT()
+    };
+
+    cpu_load_program(cpu, program, sizeof(program)/sizeof(program[0]));
+    cpu->pc = 0;
+    cpu_run(cpu, 10, false);
+
+    ASSERT_REG(cpu, 0, 6);
+    ASSERT_FLAG(cpu, zero, 0);
+    ASSERT_FLAG(cpu, carry, 0);
+
+    printf("    PASS\n");
+    return true;
+}
+
+bool test_mul(CPU16* cpu) {
+    printf("  MUL test...\n");
+
+    uint16_t program[] = {
+        LDI16(1),       // Address 0: R1 = next word (16)
+        DATA(16),       // Address 1: data
+        LDI16(2),       // Address 2: R2 = next word (16)
+        DATA(16),       // Address 3: data
+        MUL(0, 1, 2),   // Address 4: R0 = R1 * R2
+        HALT()          // Address 5
+    };
+
+    cpu_load_program(cpu, program, sizeof(program)/sizeof(program[0]));
+    cpu->pc = 0;
+    cpu_run(cpu, 10, false);
+
+    ASSERT_REG(cpu, 0, 256);
+    printf("    PASS\n");
+    return true;
+}
+
+bool test_ldi16(CPU16* cpu) {
+    printf("  LDI16 test...\n");
+
+    uint16_t program[] = {
+        LDI16(0),       // R0 = next word (0x1234)
+        DATA(0x1234),
+        HALT()
+    };
+
+    cpu_load_program(cpu, program, sizeof(program)/sizeof(program[0]));
+    cpu->pc = 0;
+    cpu_run(cpu, 10, false);
+
+    ASSERT_REG(cpu, 0, 0x1234);
+
+    printf("    PASS\n");
+    return true;
+}
+
+bool test_ld_st(CPU16* cpu) {
+    printf("  LD/ST test...\n");
+
+    uint16_t program[] = {
+        LDI16(0),       // Address 0: R0 = next word (0x1000)
+        DATA(0x1000),   // Address 1: data
+        LDI16(1),       // Address 2: R1 = next word (0xABCD)
+        DATA(0xABCD),   // Address 3: data
+        ST(0, 1),       // Address 4: memory[R0] = R1
+        LD(2, 0),       // Address 5: R2 = memory[R0]
+        HALT()          // Address 6
+    };
+
+    cpu_load_program(cpu, program, sizeof(program)/sizeof(program[0]));
+    cpu->pc = 0;
+    cpu_run(cpu, 10, false);
+
+    ASSERT_REG(cpu, 2, 0xABCD);
+    printf("    PASS\n");
+    return true;
+}
+
+bool test_jmp(CPU16* cpu) {
+    printf("  JMP test...\n");
+
+    // Jump target: address 8 (LDI16(0) with data 42)
+    uint16_t program[] = {
+        LDI16(0),       // Address 0: R0 = 10
+        DATA(10),       // Address 1
+        LDI16(1),       // Address 2: R1 = 8 (jump target)
+        DATA(8),        // Address 3
+        JMP(1),         // Address 4: Jump to R1 (address 8)
+        LDI16(0),       // Address 5: Skipped
+        DATA(99),       // Address 6
+        HALT(),         // Address 7: Skipped
+        LDI16(0),       // Address 8: R0 = 42
+        DATA(42),       // Address 9
+        HALT()          // Address 10
+    };
+
+    cpu_load_program(cpu, program, sizeof(program)/sizeof(program[0]));
+    cpu->pc = 0;
+    cpu_run(cpu, 15, false);
+
+    ASSERT_REG(cpu, 0, 42);
+    printf("    PASS\n");
+    return true;
+}
+
+bool test_jz(CPU16* cpu) {
+    printf("  JZ test...\n");
+
+    // Jump target: address 9 (LDI16(0) with data 42)
+    uint16_t program[] = {
+        LDI(0, 5),          // Address 0: R0 = 5
+        LDI(1, 5),          // Address 1: R1 = 5
+        SUB(2, 0, 1),       // Address 2: R2 = R0 - R1 = 0 (Z=1)
+        LDI16(3),           // Address 3: R3 = 9 (jump target)
+        DATA(9),            // Address 4: <-- CHANGED from 8 to 9
+        JZ(3),              // Address 5: Jump if Z=1
+        LDI16(0),           // Address 6: Skipped
+        DATA(99),           // Address 7: Skipped
+        HALT(),             // Address 8: Skipped
+        LDI16(0),           // Address 9: Should execute
+        DATA(42),           // Address 10
+        HALT()              // Address 11
+    };
+
+    cpu_load_program(cpu, program, sizeof(program)/sizeof(program[0]));
+    cpu->pc = 0;
+    cpu_run(cpu, 15, false);
+
+    ASSERT_REG(cpu, 0, 42);
+    printf("    PASS\n");
+    return true;
+}
+
+bool test_jnz(CPU16* cpu) {
+    printf("  JNZ test...\n");
+
+    // Jump target: address 9 (LDI16(0) with data 42)
+    uint16_t program[] = {
+        LDI(0, 5),          // Address 0: R0 = 5
+        LDI(1, 3),          // Address 1: R1 = 3
+        SUB(2, 0, 1),       // Address 2: R2 = R0 - R1 = 2 (Z=0)
+        LDI16(3),           // Address 3: R3 = 9 (jump target)
+        DATA(9),            // Address 4
+        JNZ(3),             // Address 5: Jump if Z=0
+        LDI16(0),           // Address 6: Skipped
+        DATA(99),           // Address 7
+        HALT(),             // Address 8: Skipped
+        LDI16(0),           // Address 9: Should execute
+        DATA(42),           // Address 10
+        HALT()              // Address 11
+    };
+
+    cpu_load_program(cpu, program, sizeof(program)/sizeof(program[0]));
+    cpu->pc = 0;
+    cpu_run(cpu, 15, false);
+
+    ASSERT_REG(cpu, 0, 42);
+    printf("    PASS\n");
+    return true;
+}
+
+bool test_cmp_flags(CPU16* cpu) {
+    printf("  CMP flags test...\n");
+
+    // Test: Compare R0=5, R1=3 -> G=1
+    uint16_t program[] = {
+        LDI(0, 5),
+        LDI(1, 3),
+        CMP(0, 1),          // Compare R0, R1
+        HALT()
+    };
+
+    cpu_load_program(cpu, program, sizeof(program)/sizeof(program[0]));
+    cpu->pc = 0;
+    cpu_run(cpu, 10, false);
+
+    ASSERT_FLAG(cpu, zero, 0);
+    ASSERT_FLAG(cpu, less, 0);
+    ASSERT_FLAG(cpu, greater, 1);
+
+    printf("    PASS\n");
+    return true;
+}
+
+bool test_flags_persist(CPU16* cpu) {
+    printf("  Flags persistence test...\n");
+
+    // Test that flags persist across operations
+    uint16_t program[] = {
+        LDI(0, 5),
+        LDI(1, 3),
+        CMP(0, 1),          // G=1
+        LDI(2, 42),         // LDI should NOT change flags
+        HALT()
+    };
+
+    cpu_load_program(cpu, program, sizeof(program)/sizeof(program[0]));
+    cpu->pc = 0;
+    cpu_run(cpu, 10, false);
+
+    // Flags should still be G=1 from CMP
+    ASSERT_FLAG(cpu, zero, 0);
+    ASSERT_FLAG(cpu, less, 0);
+    ASSERT_FLAG(cpu, greater, 1);
+
+    printf("    PASS\n");
+    return true;
+}
+
+// ============================================================
+// 5. RUN ALL TESTS
+// ============================================================
+
 int main() {
-    printf("Initializing NuBit ALU16...\n");
-    printf("============================================================\n");
+    printf("========================================\n");
+    printf("  CPU16 CORE TESTERS\n");
 
-    // Run functional tests
-    ALU16 alu;
-    alu_init(&alu, 16);
+    Bus bus;
+    bus_init(&bus);
 
-    printf("\nFunctional Tests:\n");
-    printf("============================================================\n");
+    CPU16 cpu;
+    cpu_init(&cpu, &bus);
 
-    uint64_t result = alu_forward(&alu, 5, 3, OP_ADD);
-    printf("5 + 3 = %" PRIu64 " (Z=%d, C=%d)\n",
-           result, alu.flags.zero, alu.flags.carry);
+    int passed = 0;
+    int total = 0;
 
-    result = alu_forward(&alu, 10, 4, OP_SUB);
-    printf("10 - 4 = %" PRIu64 " (Z=%d, C=%d)\n",
-           result, alu.flags.zero, alu.flags.carry);
+    // Run all tests
+    struct { bool (*func)(CPU16*); const char* name; } tests[] = {
+        {test_add, "ADD"},
+        {test_sub, "SUB"},
+        {test_mul, "MUL"},
+        {test_ldi16, "LDI16"},
+        {test_ld_st, "LD/ST"},
+        {test_jmp, "JMP"},
+        {test_jz, "JZ"},
+        {test_jnz, "JNZ"},
+        {test_cmp_flags, "CMP flags"},
+        {test_flags_persist, "Flags persist"},
+    };
 
-    result = alu_forward(&alu, 0x00FF, 0x0F0F, OP_AND);
-    printf("0x00FF & 0x0F0F = 0x%04" PRIX64 "\n", result);
+    for (int i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
+        // Reset CPU before each test
+        memset(cpu.regs, 0, sizeof(cpu.regs));
+        cpu.pc = 0;
+        cpu.halted = false;
+        memset(memory, 0, sizeof(memory));
+        bus_init(&bus);
+        cpu_init(&cpu, &bus);
 
-    result = alu_forward(&alu, 0x00FF, 0x0F00, OP_OR);
-    printf("0x00FF | 0x0F00 = 0x%04" PRIX64 "\n", result);
+        printf("[%d/%d] ", i+1, (int)(sizeof(tests)/sizeof(tests[0])));
+        if (tests[i].func(&cpu)) {
+            passed++;
+        }
+        total++;
+    }
 
-    result = alu_forward(&alu, 0x00FF, 0x0F0F, OP_XOR);
-    printf("0x00FF ^ 0x0F0F = 0x%04" PRIX64 "\n", result);
+    cpu_free(&cpu);
 
-    result = alu_forward(&alu, 0x0010, 0x0010, OP_MUL);
-    printf("16 * 16 = %" PRIu64 " (OV=%d)\n",
-           result, alu.flags.overflow);
+    printf("\n========================================\n");
+    printf("  RESULTS: %d/%d tests passed\n", passed, total);
+    printf("========================================\n");
 
-    result = alu_forward(&alu, 0x0100, 0x0100, OP_MUL);
-    printf("256 * 256 = %" PRIu64 " (OV=%d)\n",
-           result, alu.flags.overflow);
-
-    alu_forward(&alu, 0x1234, 0x5678, OP_CMP);
-    printf("0x1234 cmp 0x5678: Z=%d, L=%d, G=%d\n",
-           alu.flags.zero, alu.flags.less, alu.flags.greater);
-
-    alu_forward(&alu, 0x5678, 0x1234, OP_CMP);
-    printf("0x5678 cmp 0x1234: Z=%d, L=%d, G=%d\n",
-           alu.flags.zero, alu.flags.less, alu.flags.greater);
-
-    alu_forward(&alu, 0x1234, 0x1234, OP_CMP);
-    printf("0x1234 cmp 0x1234: Z=%d, L=%d, G=%d\n",
-           alu.flags.zero, alu.flags.less, alu.flags.greater);
-
-    alu_free(&alu);
-
-    // Run performance benchmark
-    benchmark_alu();
-
-    return 0;
+    return (passed == total) ? 0 : 1;
 }
