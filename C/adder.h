@@ -25,4 +25,7 @@ void adder_init(Adder* adder, int bits);
 void adder_free(Adder* adder);
 int adder_forward(Adder* adder, uint64_t A, uint64_t B, int cin, uint64_t* result);
 
+// debugger utilities
+void adder_debug(Adder* adder, const char* label);
+
 #endif // ADDER_H

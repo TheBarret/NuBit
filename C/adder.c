@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <inttypes.h>
 
 void adder_init(Adder* adder, int bits) {
     assert(bits > 0 && bits <= 64);
@@ -49,6 +52,11 @@ static inline void compute_generate_propagate(Adder* adder) {
 
 static void compute_carries_kogge_stone(Adder* adder, int cin) {
     int N = adder->bits;
+
+    // Save original P before Kogge-Stone modifies it
+    int* original_P = (int*)malloc(N * sizeof(int));
+    memcpy(original_P, adder->P, N * sizeof(int));
+
     int* G_curr = adder->G;
     int* P_curr = adder->P;
     int* G_next = adder->G_temp;
@@ -72,8 +80,6 @@ static void compute_carries_kogge_stone(Adder* adder, int cin) {
         }
 
         // DESIGN SHIFT: Pointer swapping (O(1)) instead of memcpy (O(N)).
-        // This perfectly mimics NumPy's atomic slice assignment without
-        // reading newly mutated values in the same loop iteration.
         int* temp_G = G_curr; G_curr = G_next; G_next = temp_G;
         int* temp_P = P_curr; P_curr = P_next; P_next = temp_P;
 
@@ -85,6 +91,10 @@ static void compute_carries_kogge_stone(Adder* adder, int cin) {
         memcpy(adder->G, G_curr, N * sizeof(int));
         memcpy(adder->P, P_curr, N * sizeof(int));
     }
+
+    // Restore original P for sum computation (P XOR carries)
+    memcpy(adder->P, original_P, N * sizeof(int));
+    free(original_P);
 
     // Construct carries array
     carries[0] = cin;
@@ -114,4 +124,42 @@ int adder_forward(Adder* adder, uint64_t A, uint64_t B, int cin, uint64_t* resul
 
     *result = res & adder->mask;
     return adder->carries[adder->bits];
+}
+
+// debugger
+void adder_debug(Adder* adder, const char* label) {
+    printf("\n=== ADDER DEBUG: %s ===\n", label);
+    printf("bits: %d\n", adder->bits);
+
+    printf("A_bits: ");
+    for (int i = adder->bits - 1; i >= 0; i--) printf("%d", adder->A_bits[i]);
+    printf("\n");
+
+    printf("B_bits: ");
+    for (int i = adder->bits - 1; i >= 0; i--) printf("%d", adder->B_bits[i]);
+    printf("\n");
+
+    printf("G (generate): ");
+    for (int i = adder->bits - 1; i >= 0; i--) printf("%d", adder->G[i]);
+    printf("\n");
+
+    printf("P (propagate): ");
+    for (int i = adder->bits - 1; i >= 0; i--) printf("%d", adder->P[i]);
+    printf("\n");
+
+    printf("carries: ");
+    for (int i = adder->bits; i >= 0; i--) printf("%d", adder->carries[i]);
+    printf("\n");
+
+    printf("S (sum): ");
+    for (int i = adder->bits - 1; i >= 0; i--) printf("%d", adder->S[i]);
+    printf("\n");
+
+    // Reconstruct result for verification
+    uint64_t res = 0;
+    for (int i = 0; i < adder->bits; i++) {
+        res |= ((uint64_t)adder->S[i]) << i;
+    }
+    printf("Reconstructed result: %" PRIu64 " (0x%04" PRIX64 ")\n", res, res);
+    printf("carry out: %d\n", adder->carries[adder->bits]);
 }

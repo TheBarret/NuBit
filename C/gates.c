@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
 
 // --- Base Gate ---
 void gate_init(Gate* g, float w1, float w2, float bias) {
@@ -61,12 +62,85 @@ void xor_gate_free(XorGate* g) {
     free(g->temp2);
 }
 
+// version 1.0
+// void xor_gate_forward(XorGate* g, const int* x1, const int* x2, int n, int* out) {
+//    assert(n <= g->max_n);
+//    gate_forward(&g->or_gate, x1, x2, n, g->temp1);
+//    gate_forward(&g->nand_gate, x1, x2, n, g->temp2);
+//    gate_forward(&g->and_gate, g->temp1, g->temp2, n, out);
+// }
+
+// version 2.0 - stack-allocated arrays
 void xor_gate_forward(XorGate* g, const int* x1, const int* x2, int n, int* out) {
     assert(n <= g->max_n);
-    gate_forward(&g->or_gate, x1, x2, n, g->temp1);
-    gate_forward(&g->nand_gate, x1, x2, n, g->temp2);
-    gate_forward(&g->and_gate, g->temp1, g->temp2, n, out);
+
+    // Use stack-allocated temp arrays
+    // This avoids any issues with the pre-allocated buffers
+    int temp1[64];
+    int temp2[64];
+
+    if (n > 64) {
+        // Fallback to heap allocation for very large n
+        int* t1 = (int*)malloc(n * sizeof(int));
+        int* t2 = (int*)malloc(n * sizeof(int));
+        if (!t1 || !t2) {
+            free(t1);
+            free(t2);
+            return;
+        }
+        gate_forward(&g->or_gate, x1, x2, n, t1);
+        gate_forward(&g->nand_gate, x1, x2, n, t2);
+        gate_forward(&g->and_gate, t1, t2, n, out);
+        free(t1);
+        free(t2);
+    } else {
+        gate_forward(&g->or_gate, x1, x2, n, temp1);
+        gate_forward(&g->nand_gate, x1, x2, n, temp2);
+        gate_forward(&g->and_gate, temp1, temp2, n, out);
+    }
 }
+
+// debug-helper version
+/* void xor_gate_forward(XorGate* g, const int* x1, const int* x2, int n, int* out) {
+    assert(n <= g->max_n);
+
+    printf("\n=== XOR GATE DEBUG ===\n");
+    printf("n=%d, max_n=%d\n", n, g->max_n);
+
+    // Print input bits
+    printf("x1: ");
+    for (int i = n-1; i >= 0; i--) printf("%d", x1[i]);
+    printf("\n");
+    printf("x2: ");
+    for (int i = n-1; i >= 0; i--) printf("%d", x2[i]);
+    printf("\n");
+
+    // Print gate weights
+    printf("OR gate: w1=%.1f, w2=%.1f, bias=%.1f\n",
+           g->or_gate.w1, g->or_gate.w2, g->or_gate.bias);
+    printf("NAND gate: w1=%.1f, w2=%.1f, bias=%.1f\n",
+           g->nand_gate.w1, g->nand_gate.w2, g->nand_gate.bias);
+    printf("AND gate: w1=%.1f, w2=%.1f, bias=%.1f\n",
+           g->and_gate.w1, g->and_gate.w2, g->and_gate.bias);
+
+    int temp1[64];
+    int temp2[64];
+
+    gate_forward(&g->or_gate, x1, x2, n, temp1);
+    printf("OR output: ");
+    for (int i = n-1; i >= 0; i--) printf("%d", temp1[i]);
+    printf("\n");
+
+    gate_forward(&g->nand_gate, x1, x2, n, temp2);
+    printf("NAND output: ");
+    for (int i = n-1; i >= 0; i--) printf("%d", temp2[i]);
+    printf("\n");
+
+    gate_forward(&g->and_gate, temp1, temp2, n, out);
+    printf("AND output (XOR): ");
+    for (int i = n-1; i >= 0; i--) printf("%d", out[i]);
+    printf("\n");
+    } */
 
 int xor_gate_forward_single(XorGate* g, int x1, int x2) {
     int or_out = gate_forward_single(&g->or_gate, x1, x2);
