@@ -25,6 +25,7 @@ struct Bus {
     int rd;
     int wr;
     uint16_t (*tick)(Bus* bus);
+    bool debug;
 };
 
 // CPU16 Structure

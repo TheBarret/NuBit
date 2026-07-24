@@ -255,6 +255,7 @@ static bool op_sys(CPU16* cpu, uint8_t syscall_id, uint8_t arg1_reg, uint8_t arg
 int cpu_run(CPU16* cpu, int max_cycles, bool verbose) {
     int cycles = 0;
     bool running = true;
+    cpu->bus->debug = verbose;
 
     while (running && cycles < max_cycles) {
         uint16_t instruction = cpu_fetch(cpu);

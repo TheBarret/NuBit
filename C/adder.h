@@ -4,6 +4,15 @@
 #include <stdint.h>
 #include "gates.h"
 
+/* Todo:
+ Eliminate Runtime Allocations (Zero Heap Churn)
+ Move the temporary buffers inside Adder struct so allocation happens only once during adder_init().
+ typedef struct {
+     ...
+     int* original_P; // Pre-allocated in adder_init
+ } Adder;
+
+ */
 typedef struct {
     int bits;
     Gate and_gate;

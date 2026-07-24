@@ -1,4 +1,4 @@
-// nb-asm.c - NuBit Assembler (COMPLETE FIXED)
+// nb-asm.c - NuBit Assembler (FIXED: stage1 LDI16 label counting)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -128,6 +128,7 @@ void stage1(FILE* file) {
             char* rest = colon + 1;
             char* rest_trimmed = trim(rest);
             if (*rest_trimmed == 0 || *rest_trimmed == ';') continue;
+            trimmed = rest_trimmed;
         }
 
         // Count words for address tracking
@@ -151,13 +152,11 @@ void stage1(FILE* file) {
                 if (strcasecmp(token, instructions[i].name) == 0) {
                     address += 1;
                     if (instructions[i].opcode == 0x8) { // LDI16
-                        // LDI16 may have a label, which is a data word
-                        // Count it as one extra word
-                        char* rest = trimmed + strlen(token);
-                        char* rest_trimmed = trim(rest);
-                        if (*rest_trimmed != 0 && *rest_trimmed != ';') {
-                            // There's a second argument (address label)
-                            // Count it as a data word
+                        // use strtok's own chain instead of re-deriving
+                        // a pointer from trimmed+strlen(token), which pointed
+                        // at the '\0' strtok had already written in place.
+                        char* next = strtok(NULL, " ,\t");
+                        if (next) {
                             address += 1;
                         }
                     }

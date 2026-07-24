@@ -34,7 +34,7 @@ int run_pipeline_mode(void) {
     cpu.halted = false;
 
     // Run with verbose output (optional)
-    int cycles = cpu_run(&cpu, 100000, false);
+    int cycles = cpu_run(&cpu, 100000, true);
 
     //printf("\nCycles executed: %d\n", cycles);
 

@@ -6,6 +6,19 @@
 #include <stdint.h>
 #include <inttypes.h>
 
+/*
+    Workflow:
+    Step 1: Compute G = A & B, P = A XOR B
+    Step 2: Kogge-Stone parallel prefix:
+        stride=1:  G[i] = G[i] | (P[i] & G[i-1])
+                    P[i] = P[i] & P[i-1]
+        stride=2:  G[i] = G[i] | (P[i] & G[i-2])
+                    P[i] = P[i] & P[i-2]
+        stride=4:  ...
+    Step 3: Carries = [cin, G[0], G[1], ..., G[N-1]]
+    Step 4: Sum = P_original XOR Carries[0..N-1]
+ */
+
 void adder_init(Adder* adder, int bits) {
     assert(bits > 0 && bits <= 64);
     adder->bits = bits;
