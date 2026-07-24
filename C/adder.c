@@ -88,8 +88,16 @@ static void compute_carries_kogge_stone(Adder* adder, int cin) {
         }
         // 2. Compute new values using the OLD state (G_curr, P_curr)
         for (int i = stride; i < N; i++) {
-            G_next[i] = G_curr[i] | (P_curr[i] & G_curr[i - stride]);
-            P_next[i] = P_curr[i] & P_curr[i - stride];
+            // debug ( standard C boolean math, | and &)
+            //G_next[i] = G_curr[i] | (P_curr[i] & G_curr[i - stride]);
+            //P_next[i] = P_curr[i] & P_curr[i - stride];
+
+            // P_next: Propagate AND Propagate(shifted)
+            // G_next step 1: Propagate AND Generate(shifted)
+            // G_next step 2: Generate OR (the result of step 1)
+            P_next[i] = gate_forward_single(&adder->and_gate, P_curr[i], P_curr[i - stride]);
+            int p_and_g = gate_forward_single(&adder->and_gate, P_curr[i], G_curr[i - stride]);
+            G_next[i] = gate_forward_single(&adder->or_gate, G_curr[i], p_and_g);
         }
 
         // DESIGN SHIFT: Pointer swapping (O(1)) instead of memcpy (O(N)).
