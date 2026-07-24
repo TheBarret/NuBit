@@ -13,8 +13,8 @@ gcc -O3 -march=native -Wall -Wextra -c cpu.c -o cpu.o -DNDEBUG
 gcc -O2 -Wall -Wextra -c bus.c -o bus.o -DNDEBUG
 
 # Neural Associative Memory (NAM)
-gcc -O3 -march=native -Wall -Wextra -c nam_io.c -o nam_io.o -DNDEBUG
-gcc -O3 -march=native -Wall -Wextra -c nam.c -o nam.o -DNDEBUG
+gcc -O3 -march=native -Wall -Wextra -c memory/nam_io.c -o nam_io.o -DNDEBUG
+gcc -O3 -march=native -Wall -Wextra -c memory/nam.c -o nam.o -DNDEBUG
 
 # Application
 gcc -O2 -Wall -Wextra -c main.c -o main.o -DNDEBUG
