@@ -6,52 +6,41 @@
 #include "cpu.h"
 #include "bus.h"
 
-// Read hex from stdin and run the program
-int run_pipeline_mode(void) {
+int main(int argc, char** argv) {
     Bus bus;
-    bus_init(&bus);
-
     CPU16 cpu;
+
+    bus_init(&bus);
     cpu_init(&cpu, &bus);
 
-    // Read hex words from stdin
-    uint16_t addr = 0;
-    uint32_t word;
-    int count = 0;
-
-    while (scanf("%4" SCNx32, &word) == 1) {
-        bus_write(&bus, addr++, (uint16_t)word);
-        count++;
-    }
-
-    if (count == 0) {
-        fprintf(stderr, "No program loaded from stdin\n");
+    // Load program from file (not stdin)
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <program.hex>\n", argv[0]);
         return 1;
     }
 
-    // Set PC to 0 and run
-    cpu.pc = 0x0000;
-    cpu.halted = false;
+    FILE* prog = fopen(argv[1], "r");
+    if (!prog) {
+        fprintf(stderr, "Error: Cannot open %s\n", argv[1]);
+        return 1;
+    }
 
-    // Run with verbose output (optional)
-    int cycles = cpu_run(&cpu, 100000, true);
+    uint16_t addr = 0;
+    char line[16];
+    while (fgets(line, sizeof(line), prog)) {
+        uint16_t word = (uint16_t)strtol(line, NULL, 16);
+        bus_write(&bus, addr++, word);
+    }
+    fclose(prog);
 
-    //printf("\nCycles executed: %d\n", cycles);
+    // Set stack pointer
+    cpu.regs[15] = 0xFFF0;
+
+    // Run - stdin is now free for user input!
+    printf("\n=== NubitVM Execution ===\n");
+    int cycles = cpu_run(&cpu, 100000, false);
+    printf("\n=== Halted after %d cycles ===\n", cycles);
 
     cpu_free(&cpu);
-    return 0;
-}
-
-int main(int argc, char** argv) {
-    // Check if we're in pipeline mode (stdin has data, or -p flag)
-    if (argc > 1 && strcmp(argv[1], "-p") == 0) {
-        return run_pipeline_mode();
-    }
-
-    // If stdin is not a terminal and has data, run pipeline mode
-    if (!isatty(fileno(stdin))) {
-        return run_pipeline_mode();
-    }
-
     return 0;
 }

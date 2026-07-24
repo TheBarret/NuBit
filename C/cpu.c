@@ -213,8 +213,8 @@ static bool op_halt(CPU16* cpu, uint8_t dest, uint8_t src1, uint8_t src2) {
 }
 
 static bool op_sys(CPU16* cpu, uint8_t syscall_id, uint8_t arg1_reg, uint8_t arg2_reg) {
-    (void)arg2_reg; // Reserved for string length, file descriptors, etc
     uint16_t arg1 = cpu->regs[arg1_reg];
+    uint16_t arg2 = cpu->regs[arg2_reg];
 
     switch (syscall_id) {
         case 0: { // SYS_PRINT_STR: arg1_reg holds memory address of null-terminated string
@@ -239,11 +239,57 @@ static bool op_sys(CPU16* cpu, uint8_t syscall_id, uint8_t arg1_reg, uint8_t arg
             fflush(stdout);
             break;
         }
-        case 3: { // SYS_EXIT: arg1_reg holds the exit code
+        case 3: { // SYS_EXIT: arg1_reg holds the exit code (main catch)
             cpu->halted = true;
-            // Note: In a full runner, you might capture this to return from main()
             break;
         }
+
+        case 4: { // SYS_READ_CHAR: Read single char into arg1_reg
+            int ch = getchar();
+            if (ch == EOF) ch = 0;
+            cpu->regs[arg1_reg] = (uint16_t)(ch & 0xFF);
+            break;
+        }
+
+        case 5: { // SYS_READ_INT: Read integer into arg1_reg
+            int val;
+            scanf("%d", &val);
+            cpu->regs[arg1_reg] = (uint16_t)(val & 0xFFFF);
+            break;
+        }
+
+        case 6: { // SYS_READ_STR: Read string into buffer at arg1
+            uint16_t addr = arg1;
+            uint16_t max_len = arg2;
+            char buffer[256];
+
+            fgets(buffer, sizeof(buffer), stdin);
+            int len = strlen(buffer);
+            if (buffer[len-1] == '\n') buffer[len-1] = '\0';
+
+            // Copy to memory
+            for (int i = 0; i < max_len && buffer[i]; i++) {
+                cpu_write_memory(cpu, addr + i, (uint16_t)buffer[i]);
+            }
+            cpu_write_memory(cpu, addr + (len < max_len ? len : max_len), 0);
+            break;
+        }
+
+        case 7: { // SYS_READ_KEY: Immediate read, no echo
+            // Non-blocking? We'll do blocking for simplicity
+            int ch = getchar();
+            if (ch == EOF) ch = 0;
+            cpu->regs[arg1_reg] = (uint16_t)(ch & 0xFF);
+            break;
+        }
+
+        case 8: { // SYS_PEEK_KEY: Check if key available
+            // This requires platform-specific non-blocking input
+            // Simple implementation: return 0 (no key)
+            cpu->regs[arg1_reg] = 0;
+            break;
+        }
+
         default:
             printf("\n  WARNING: Unknown system call: %d\n", syscall_id);
             break;

@@ -1,4 +1,4 @@
-// nb-asm.c - NuBit Assembler (FIXED: stage1 LDI16 label counting)
+// nb-asm.c - NuBit Assembler (NO STRINGS, just .word)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -89,6 +89,14 @@ char* trim(char* str) {
     return str;
 }
 
+// Strip comments
+void strip_comments(char* line) {
+    char* comment = strchr(line, ';');
+    if (comment) {
+        *comment = '\0';
+    }
+}
+
 int parse_register(const char* token) {
     if (token[0] != 'R' && token[0] != 'r') return -1;
     int reg = atoi(token + 1);
@@ -110,12 +118,13 @@ uint16_t parse_number(const char* token) {
 // Stage 1: Parse labels and collect symbols
 void stage1(FILE* file) {
     fseek(file, 0, SEEK_SET);
-    char line[256];
+    char line[1024];
     uint16_t address = 0;
 
     while (fgets(line, sizeof(line), file)) {
+        strip_comments(line);
         char* trimmed = trim(line);
-        if (*trimmed == 0 || *trimmed == ';') continue;
+        if (*trimmed == 0) continue;
 
         // Check for label
         char* colon = strchr(trimmed, ':');
@@ -127,34 +136,21 @@ void stage1(FILE* file) {
             }
             char* rest = colon + 1;
             char* rest_trimmed = trim(rest);
-            if (*rest_trimmed == 0 || *rest_trimmed == ';') continue;
+            if (*rest_trimmed == 0) continue;
             trimmed = rest_trimmed;
         }
 
-        // Count words for address tracking
+        // Parse instruction (only .word and opcodes)
         char* token = strtok(trimmed, " ,\t");
         if (!token) continue;
 
         if (strcmp(token, ".word") == 0 || strcmp(token, ".d") == 0) {
             address += 1;
-        } else if (strcmp(token, ".cstr") == 0 || strcmp(token, ".ascii") == 0) {
-            char* rest = trimmed + strlen(token);
-            char* start = strchr(rest, '"');
-            if (start) {
-                char* end = strchr(start + 1, '"');
-                if (end) {
-                    int len = end - start - 1;
-                    address += len + 1;
-                }
-            }
         } else {
             for (int i = 0; i < num_instructions; i++) {
                 if (strcasecmp(token, instructions[i].name) == 0) {
                     address += 1;
                     if (instructions[i].opcode == 0x8) { // LDI16
-                        // use strtok's own chain instead of re-deriving
-                        // a pointer from trimmed+strlen(token), which pointed
-                        // at the '\0' strtok had already written in place.
                         char* next = strtok(NULL, " ,\t");
                         if (next) {
                             address += 1;
@@ -170,48 +166,32 @@ void stage1(FILE* file) {
 // Stage 2: Generate code
 void stage2(FILE* file) {
     fseek(file, 0, SEEK_SET);
-    char line[256];
+    char line[1024];
     output_count = 0;
 
     while (fgets(line, sizeof(line), file)) {
+        strip_comments(line);
         char* trimmed = trim(line);
-        if (*trimmed == 0 || *trimmed == ';') continue;
+        if (*trimmed == 0) continue;
 
         // Strip label if present
         char* colon = strchr(trimmed, ':');
         if (colon) {
             char* rest = colon + 1;
             trimmed = trim(rest);
-            if (*trimmed == 0 || *trimmed == ';') continue;
+            if (*trimmed == 0) continue;
         }
 
         // Parse instruction
         char* token = strtok(trimmed, " ,\t");
         if (!token) continue;
 
-        // Handle directives
+        // Handle .word directive ONLY
         if (strcmp(token, ".word") == 0 || strcmp(token, ".d") == 0) {
             char* value_token = strtok(NULL, " ,\t");
             if (value_token) {
                 uint16_t val = parse_number(value_token);
                 emit(val);
-            }
-            continue;
-        }
-
-        if (strcmp(token, ".cstr") == 0 || strcmp(token, ".ascii") == 0) {
-            char* rest = trimmed + strlen(token);
-            char* start = strchr(rest, '"');
-            if (start) {
-                char* end = strchr(start + 1, '"');
-                if (end) {
-                    *end = '\0';
-                    char* str_content = start + 1;
-                    for (int i = 0; str_content[i]; i++) {
-                        emit((uint16_t)str_content[i]);
-                    }
-                    emit(0);
-                }
             }
             continue;
         }
@@ -248,7 +228,7 @@ void stage2(FILE* file) {
         encoded |= (opcode << 12);
 
         // Special handling for SYS
-        if (opcode == 0xE) {  // SYS
+        if (opcode == 0xE) {
             int syscall_id = 0;
             int arg1_reg = 0;
             int arg2_reg = 0;
@@ -265,7 +245,7 @@ void stage2(FILE* file) {
         }
 
         // Special handling for LDI16
-        if (opcode == 0x8) {  // LDI16 Rd, label
+        if (opcode == 0x8) {
             int dest_reg = 0;
             uint16_t data_word = 0;
             int has_data = 0;
@@ -274,7 +254,6 @@ void stage2(FILE* file) {
                 dest_reg = parse_register(operands[0]);
             }
 
-            // Check for second operand (address label or immediate)
             if (op_count >= 2) {
                 int sym_addr = find_symbol(operands[1]);
                 if (sym_addr >= 0) {
@@ -286,11 +265,9 @@ void stage2(FILE* file) {
                 }
             }
 
-            // Emit LDI16 instruction
             encoded |= (dest_reg << 8);
             emit(encoded);
 
-            // Emit data word if provided
             if (has_data) {
                 emit(data_word);
             }
@@ -319,7 +296,7 @@ void stage2(FILE* file) {
         }
 
         // Special handling for jump instructions
-        if (opcode == 0xB || opcode == 0xC || opcode == 0xD) {  // JMP, JZ, JNZ
+        if (opcode == 0xB || opcode == 0xC || opcode == 0xD) {
             if (op_count >= 1) {
                 int src_reg = parse_register(operands[0]);
                 encoded |= (src_reg << 4);
@@ -330,26 +307,26 @@ void stage2(FILE* file) {
 
         // Handle based on format
         switch (format) {
-            case 0: // 3-reg: ADD, SUB, AND, OR, XOR, MUL
+            case 0: // 3-reg
                 if (reg_count >= 3) {
                     encoded |= (regs[0] << 8);
                     encoded |= (regs[1] << 4);
                     encoded |= regs[2];
                 }
                 break;
-            case 1: // 2-reg: CMP, LD, ST
+            case 1: // 2-reg
                 if (reg_count >= 2) {
                     encoded |= (regs[0] << 8);
                     encoded |= (regs[1] << 4);
                 }
                 break;
-            case 2: // reg+imm4: LDI
+            case 2: // reg+imm4
                 if (reg_count >= 1) {
                     encoded |= (regs[0] << 8);
                     encoded |= (imm_val & 0xF);
                 }
                 break;
-            case 3: // 0-reg: HALT
+            case 3: // 0-reg
                 break;
             default:
                 break;
@@ -389,7 +366,7 @@ int main(int argc, char** argv) {
 
     fclose(file);
 
-    // Output hex - one word per line
+    // Output hex
     for (int i = 0; i < output_count; i++) {
         printf("%04X\n", output[i]);
     }
