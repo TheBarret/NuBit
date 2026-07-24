@@ -1,8 +1,4 @@
-# Nubit Illustration
-
-<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/f8cee4c8-a148-4c67-8f9f-249235a2df8b" />
-
-## Porting to C
+## Porting Python to C Challenge
 
 The Python prototype proved the concept, the C port performance is ~228,000 ops/sec for 16-bit operations,  
 roughly 70× faster than Python, while preserving the neural architecture.  
