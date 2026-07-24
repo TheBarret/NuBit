@@ -26,8 +26,41 @@ ALU Performance Summary:
 | **adder.c** | Kogge-Stone parallel prefix adder. O(log N) carry propagation. The heart of the ALU's speed. |
 | **alu16.c** | ALU operations: ADD, SUB, MUL, AND, OR, XOR, CMP. All 80+ tests pass. Flags: Z, C, OV, L, G. |
 | **cpu16.c** | 16-register, 16-bit CPU. Fetch-decode-execute with function-pointer dispatch. 16 instructions including SYS. |
-| **bus.c** | Virtual 64KB memory. Handles reads/writes and I/O port trapping. |
+| **bus.c/neuristor.c** | Virtual 64 MiB Neuristor-based memory (16-Bit). Handles reads/writes and I/O port trapping. |
 | **nb-asm.c** | Two-stage assembler. Pass 1 collects symbols; Pass 2 generates bytecode. Outputs hex for the runtime. |
+| **main.c** | Runs NuBit runtime with hexcode (`nubit program.hex`) |
+
+## Neuristor Memory
+
+A hardware-level simulation of a neuromorphic memory bus (16-bit), rather than using traditional static RAM (SRAM),  
+memory is stored across a 3D fields of virtual neuristor cells, analog switches activated by coincident voltage signals.  
+
+The bus maps a 16-bit address space (`65,536` locations) across 16 parallel bitplanes.  
+Each bitplane contains a `256x256` grid of physical `Neuristor` cells.  
+
+```
+          Plane 15 (Bit 15 Grid)  [256 x 256]  ──► Bit 15
+                   ⋮
+          Plane  1 (Bit  1 Grid)  [256 x 256]  ──► Bit 1
+          Plane  0 (Bit  0 Grid)  [256 x 256]  ──► Bit 0
+                                                    │
+ Address (16-bit) ──► [ Row (8-bit) | Col (8-bit) ]─┴─► 16-bit CPU Data Word
+```
+
+Every bus operation takes place during a single clock tick (`bus_tick`) and relies on coincident voltage signals, 
+`(w_row + w_col + bias > 0)` to activate targeted cells.  
+
+#### Read Cycle (`bus_read`)
+1. **Address Decode:** Decodes the requested address into `(Row, Col)` coordinates.  
+2. **Coincident Activation:** Drives row/col activation signals to all 16 planes.  
+3. **Destructive Read:** Each selected cell's analog state (`NEURISTOR_POSITIVE` vs. `NEURISTOR_NEGATIVE`) is sampled into a 16-bit word.
+   *Reading wipes the cell state to neutral.*
+4. **Auto-Refresh:** The bus immediately rewrites the sampled bits back into the cell, hiding the destructive read from the CPU.  
+
+#### Write Cycle (`bus_write`)
+1. **Address Decode:** Decodes address into `(Row, Col)` coordinates.
+2. **Coincident Activation:** Drives row/col activation signals to all 16 planes.
+3. **State Latency:** Translates each bit of the CPU `data_out` word into positive (`+`) or negative (`-`) state biases and updates the neuristor cells.  
 
 ## Pipeline
 
