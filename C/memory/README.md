@@ -1,8 +1,5 @@
 # NuBit Memory Subsystem
 
-<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/24dae04d-c70e-4777-ae4b-1e8cef6342bf" />
-
-
 ## Tier 1, Register File (fast, small, gate-native)
 
 Existing `Gate` primitive (specifically `NAND_GATE`), composed into cross-coupled SR latches,  
