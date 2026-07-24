@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <string.h>
-#include "cpu.h"
+#include "headers/cpu.h"
 #include "memory/neuristor.h"
 
 #define ADDR_ROW_BITS 8

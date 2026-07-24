@@ -1,4 +1,4 @@
-#include "gates.h"
+#include "headers/gates.h"
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>

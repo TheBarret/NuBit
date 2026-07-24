@@ -1,4 +1,4 @@
-#include "alu.h"
+#include "headers/alu.h"
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>

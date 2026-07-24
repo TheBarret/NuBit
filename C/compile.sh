@@ -3,7 +3,7 @@
 echo "Compiling NuBit runtime..."
 
 # Clean old files
-rm -f ./*.o ./nubit
+rm -f ./*.o
 
 # Gates, adder, alu, cpu, bus
 gcc -O3 -march=native -Wall -Wextra -c gates.c -o gates.o -DNDEBUG
@@ -15,12 +15,12 @@ gcc -O2 -Wall -Wextra -c bus.c -o bus.o -DNDEBUG
 
 # Application
 gcc -O2 -Wall -Wextra -c main.c -o main.o -DNDEBUG
-gcc -o nubit gates.o adder.o alu.o cpu.o bus.o neuristor.o main.o -DNDEBUG
+gcc -o bin/nubit gates.o adder.o alu.o cpu.o bus.o neuristor.o main.o -DNDEBUG
 
 # Assembler
-gcc -o nb-asm nb-asm.c
+gcc -o bin/nb-asm nb-asm.c
 
-# Clean
+# Clean Up
 rm -f ./*.o
 
 # inform

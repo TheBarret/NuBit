@@ -3,8 +3,8 @@
 #include <inttypes.h>
 #include <string.h>
 #include <unistd.h>  // for isatty
-#include "cpu.h"
-#include "bus.h"
+#include "headers/cpu.h"
+#include "headers/bus.h"
 
 int main(int argc, char** argv) {
     Bus bus;
@@ -33,14 +33,13 @@ int main(int argc, char** argv) {
     }
     fclose(prog);
 
-    // Set stack pointer
+    // set stack pointer
     cpu.regs[15] = 0xFFF0;
 
-    // Run - stdin is now free for user input!
-    printf("\n=== NubitVM Execution ===\n");
+    // commit
     int cycles = cpu_run(&cpu, 100000, false);
-    printf("\n=== Halted after %d cycles ===\n", cycles);
 
+    // clean exit
     cpu_free(&cpu);
     return 0;
 }
