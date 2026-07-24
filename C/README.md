@@ -67,5 +67,7 @@ Every bus operation takes place during a single clock tick (`bus_tick`) and reli
 ```
 .asm → nb-asm → .hex → nubit → output
 ```
+<img width="1044" height="640" alt="image" src="https://github.com/user-attachments/assets/3a588215-8b01-4a1d-9a50-36d23fe566a1" />
+*(sorry for the little typo)*
 
-<img width="1132" height="589" alt="image" src="https://github.com/user-attachments/assets/79c132c5-22ba-4624-ae4b-283eb739316a" />
+
