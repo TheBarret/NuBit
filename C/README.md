@@ -1,7 +1,7 @@
 ## Porting Python to C Challenge
 
-The Python prototype proved the concept, the C port performance is ~228,000 ops/sec for 16-bit operations,  
-roughly 70× faster than Python, while preserving the neural architecture.  
+The Python prototype proved the neuromorphic computer simulation concept,  
+the C port performance is ~228,000 ops/sec for 16-bit operations, roughly 70× faster than Python.  
 
 Perf results (on a AMD-8Core):
 ```
